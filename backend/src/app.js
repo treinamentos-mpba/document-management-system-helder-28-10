@@ -12,6 +12,7 @@
 
 const express = require('express');
 const { createDocumentRepository } = require('./repositories/documentRepository');
+const { createFileRepository } = require('./repositories/fileRepository');
 const { createDocumentService } = require('./services/documentService');
 const { createDocumentController } = require('./controllers/documentController');
 const { createDocumentRouter } = require('./routes/documentRoutes');
@@ -20,7 +21,8 @@ const { errorHandler } = require('./controllers/errorHandler');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const documentRepository = createDocumentRepository();
-const documentService = createDocumentService(documentRepository);
+const fileRepository = createFileRepository();
+const documentService = createDocumentService(documentRepository, fileRepository);
 const documentController = createDocumentController(documentService);
 
 app.use(express.json());

@@ -1,22 +1,10 @@
-const fs = require('node:fs/promises');
 const path = require('node:path');
-const { storageDirectory } = require('../config/storage');
 
-async function removeUploadedFile(filePath) {
-  try {
-    await fs.unlink(filePath);
-  } catch (error) {
-    if (error.code !== 'ENOENT') {
-      throw error;
-    }
-  }
-}
-
-function createDocumentService(documentRepository) {
+function createDocumentService(documentRepository, fileRepository) {
   return {
     async createDocument(file, owner) {
       if (file.size === 0) {
-        await removeUploadedFile(file.path);
+        await fileRepository.remove(file.filename);
         const error = new Error('O arquivo enviado está vazio.');
         error.code = 'FILE_EMPTY';
         throw error;
@@ -36,7 +24,7 @@ function createDocumentService(documentRepository) {
       try {
         return documentRepository.save(document);
       } catch (error) {
-        await removeUploadedFile(file.path);
+        await fileRepository.remove(file.filename);
         throw error;
       }
     },
@@ -52,16 +40,10 @@ function createDocumentService(documentRepository) {
         return null;
       }
 
-      const filePath = path.join(storageDirectory, document.storageFilename);
+      const filePath = await fileRepository.findPath(document.storageFilename);
 
-      try {
-        await fs.access(filePath);
-      } catch (error) {
-        if (error.code === 'ENOENT') {
-          return null;
-        }
-
-        throw error;
+      if (!filePath) {
+        return null;
       }
 
       return { document, filePath };

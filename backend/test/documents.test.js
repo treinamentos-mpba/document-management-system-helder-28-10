@@ -7,6 +7,14 @@ process.env.MAX_UPLOAD_SIZE_BYTES = '64';
 
 const app = require('../src/app');
 const { storageDirectory } = require('../src/config/storage');
+const { createFileRepository } = require('../src/repositories/fileRepository');
+
+test('repositório local rejeita caminhos fora do storage', async () => {
+  const fileRepository = createFileRepository();
+
+  await assert.rejects(fileRepository.findPath('../outside'), /Nome de arquivo inválido/);
+  await assert.rejects(fileRepository.remove('..'), /Arquivo fora do diretório de storage/);
+});
 
 test('API de documentos', async (suite) => {
   const server = app.listen(0);
