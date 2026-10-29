@@ -1,5 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
+
+process.env.MAX_UPLOAD_SIZE_BYTES ||= '1048576';
+
 const app = require('../src/app');
 
 // Teste de fumaça do seed: garante que o app Express foi exportado.
