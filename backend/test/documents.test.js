@@ -72,6 +72,65 @@ test('API de documentos', async (suite) => {
     assert.equal(await downloadResponse.text(), 'conteudo de teste');
   });
 
+  await suite.test('lista vazia para um usuário sem documentos', async () => {
+    const response = await fetch(`${baseUrl}/documents`, {
+      headers: { 'X-User-Id': 'usuario-sem-documentos' }
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), []);
+  });
+
+  await suite.test('rejeita listagem e download sem usuário', async () => {
+    for (const endpoint of ['/documents', '/documents/inexistente/download']) {
+      const response = await fetch(`${baseUrl}${endpoint}`);
+
+      assert.equal(response.status, 400);
+      assert.equal((await response.json()).error.code, 'USER_ID_REQUIRED');
+    }
+  });
+
+  await suite.test('retorna 404 ao baixar um documento inexistente', async () => {
+    const response = await fetch(`${baseUrl}/documents/inexistente/download`, {
+      headers: { 'X-User-Id': 'usuario-a' }
+    });
+
+    assert.equal(response.status, 404);
+    assert.equal((await response.json()).error.code, 'DOCUMENT_NOT_FOUND');
+  });
+
+  await suite.test('aceita upload abaixo do limite e retorna 404 se o arquivo for removido', async () => {
+    const content = 'x'.repeat(63);
+    const form = new FormData();
+    form.append('file', new Blob([content], { type: 'text/plain' }), 'limite.txt');
+
+    const uploadResponse = await fetch(`${baseUrl}/upload`, {
+      method: 'POST',
+      headers: { 'X-User-Id': 'usuario-limite' },
+      body: form
+    });
+
+    assert.equal(uploadResponse.status, 201);
+    const document = await uploadResponse.json();
+    uploadedIds.push(document.id);
+    assert.equal(document.size, 63);
+
+    const downloadUrl = `${baseUrl}/documents/${document.id}/download`;
+    const downloadResponse = await fetch(downloadUrl, {
+      headers: { 'X-User-Id': 'usuario-limite' }
+    });
+    assert.equal(downloadResponse.status, 200);
+    assert.equal(await downloadResponse.text(), content);
+
+    await fs.unlink(`${storageDirectory}/${document.id}`);
+
+    const missingFileResponse = await fetch(downloadUrl, {
+      headers: { 'X-User-Id': 'usuario-limite' }
+    });
+    assert.equal(missingFileResponse.status, 404);
+    assert.equal((await missingFileResponse.json()).error.code, 'DOCUMENT_NOT_FOUND');
+  });
+
   await suite.test('rejeita upload sem usuário antes de gravar o arquivo', async () => {
     const form = new FormData();
     form.append('file', new Blob(['nao deve ser salvo']), 'arquivo.txt');
